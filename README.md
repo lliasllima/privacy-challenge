@@ -1,8 +1,8 @@
 # Seguir Criadora
 
-Monorepo do projeto **Seguir Criadora**. A API já expõe o núcleo de negócio
-(usuários, criadoras e seguidores); o frontend React será adicionado em `/front`
-depois.
+Monorepo do projeto **Seguir Criadora**: API NestJS em `/back` e frontend
+React + Vite em `/front`, com PostgreSQL, API e front orquestrados pelo
+`docker-compose.yml`.
 
 ## Estrutura
 
@@ -22,7 +22,11 @@ depois.
 │   │   └── main.ts
 │   ├── test/              # testes e2e (Jest + supertest, PostgreSQL real)
 │   └── Dockerfile
-├── docker-compose.yml     # postgres + api
+├── front/                 # React + TypeScript + Vite (nginx em produção)
+│   ├── src/               # App, cliente da API e CSS
+│   ├── nginx.conf         # proxy /api/ -> api:3000
+│   └── Dockerfile
+├── docker-compose.yml     # postgres + api + front (+ api-test no profile test)
 └── .env.example
 ```
 
@@ -35,12 +39,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
+- Frontend: <http://localhost:8080>
 - API: <http://localhost:3000>
 - Health check: <http://localhost:3000/health>
 - PostgreSQL: `localhost:5432` (credenciais definidas no `.env`)
 
-A API aguarda o PostgreSQL ficar saudável e executa as migrations
-automaticamente na inicialização (`migrationsRun: true`).
+O front chama sempre `/api/...`; o nginx faz proxy para a API removendo o
+prefixo `/api`, então não há CORS. A API aguarda o PostgreSQL ficar saudável e
+executa as migrations automaticamente na inicialização (`migrationsRun: true`).
 
 ## Endpoints
 
@@ -113,6 +119,33 @@ npm run migration:revert
 
 O TypeORM está configurado com `synchronize: false`; alterações de schema devem
 ser feitas por migrations.
+
+## Frontend
+
+Tela única em React + TypeScript + Vite, servida por nginx:
+
+- Mostra a primeira criadora de `GET /creators`, o total de seguidores e o botão
+  **Seguir** / **Deixar de seguir**.
+- Na primeira visita cria um usuário `Visitante-xxxx` via `POST /users` e guarda
+  o `userId` no `localStorage`. Se o id guardado não existir mais no backend
+  (404/400), cria outro automaticamente.
+- Consulta `GET /creators/:id/followers/:userId` ao carregar para refletir o
+  estado real do botão.
+- Atualiza o contador por polling a cada 5 segundos e imediatamente após cada
+  clique; o botão fica desabilitado durante a requisição e erros aparecem em
+  texto simples.
+- Sem bibliotecas de UI: apenas CSS.
+
+Desenvolvimento local do front (API precisa estar em `localhost:3000`):
+
+```bash
+cd front
+npm install
+npm run dev   # http://localhost:5173, proxy /api configurado no vite.config.ts
+```
+
+Em produção (Compose), o nginx serve `front/dist` e faz proxy de `/api/` para
+`http://api:3000/` (sem CORS).
 
 ## Testes e2e
 
