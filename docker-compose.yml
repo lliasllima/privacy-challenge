@@ -47,5 +47,22 @@ services:
       retries: 5
       start_period: 15s
 
+  api-test:
+    profiles: ["test"]
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+      target: test
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${TEST_DB_NAME:-followers_test}
+      TEST_DB_NAME: ${TEST_DB_NAME:-followers_test}
+      NODE_ENV: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

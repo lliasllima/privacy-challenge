@@ -20,6 +20,7 @@ depois.
 │   │   ├── users/         # módulo de usuários
 │   │   ├── app.module.ts
 │   │   └── main.ts
+│   ├── test/              # testes e2e (Jest + supertest, PostgreSQL real)
 │   └── Dockerfile
 ├── docker-compose.yml     # postgres + api
 └── .env.example
@@ -112,6 +113,32 @@ npm run migration:revert
 
 O TypeORM está configurado com `synchronize: false`; alterações de schema devem
 ser feitas por migrations.
+
+## Testes e2e
+
+Os testes rodam contra PostgreSQL real (sem mock nem SQLite), em um banco
+separado no mesmo container:
+
+```bash
+docker compose down -v                 # opcional: começa do zero
+docker compose run --rm --build api-test
+```
+
+O serviço `api-test` está no profile `test`, então não sobe com
+`docker compose up`. O banco de testes (`TEST_DB_NAME`, default
+`followers_test`) é criado automaticamente pelo `test/global-setup.js`, que
+recusa qualquer nome que não termine em `_test` para nunca tocar no banco de
+desenvolvimento. As migrations rodam no boot da aplicação de teste e
+`followers`/`users` são limpos entre os casos.
+
+Detalhes:
+
+- `back/test/app.e2e-spec.ts`: suíte e2e.
+- `back/test/jest-e2e.json`: configuração do Jest.
+- `back/test/setup-env.ts`: força `DB_NAME = TEST_DB_NAME` antes de carregar o
+  `AppModule`.
+- Rodar localmente (com o Postgres do Compose de pé):
+  `cd back && npm test`.
 
 ## Parar
 

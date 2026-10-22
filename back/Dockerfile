@@ -1,14 +1,24 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
+FROM deps AS build
+
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
 
 RUN npm run build && npm prune --omit=dev
+
+FROM deps AS test
+
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY src ./src
+COPY test ./test
+
+CMD ["npm", "run", "test:e2e"]
 
 FROM node:22-alpine AS runtime
 
