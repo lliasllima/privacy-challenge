@@ -1,7 +1,8 @@
 # Seguir Criadora
 
-Monorepo do projeto **Seguir Criadora**. Nesta etapa existe apenas a base de
-infraestrutura da API; o frontend React será adicionado em `/front` depois.
+Monorepo do projeto **Seguir Criadora**. A API já expõe o núcleo de negócio
+(usuários, criadoras e seguidores); o frontend React será adicionado em `/front`
+depois.
 
 ## Estrutura
 
@@ -9,10 +10,14 @@ infraestrutura da API; o frontend React será adicionado em `/front` depois.
 .
 ├── back/                  # API NestJS + TypeORM
 │   ├── src/
+│   │   ├── common/        # filtro global de exceções
 │   │   ├── config/        # validação das variáveis de ambiente
+│   │   ├── creators/      # módulo de criadoras
 │   │   ├── database/      # DataSource e migrations
 │   │   ├── entities/      # Creator, User, Follower
+│   │   ├── followers/     # módulo de seguidores
 │   │   ├── health/        # GET /health
+│   │   ├── users/         # módulo de usuários
 │   │   ├── app.module.ts
 │   │   └── main.ts
 │   └── Dockerfile
@@ -36,6 +41,31 @@ docker compose up --build
 A API aguarda o PostgreSQL ficar saudável e executa as migrations
 automaticamente na inicialização (`migrationsRun: true`).
 
+## Endpoints
+
+| Método   | Rota                                          | Resposta                                  |
+| -------- | --------------------------------------------- | ----------------------------------------- |
+| `POST`   | `/users`                                      | `201 {id, name}`                          |
+| `GET`    | `/creators`                                   | `200 [{id, name}]`                        |
+| `GET`    | `/creators/:creatorId`                        | `200 {id, name}` / `404`                  |
+| `POST`   | `/creators/:creatorId/followers`              | `201` na 1ª vez, `200` se já seguia        |
+| `DELETE` | `/creators/:creatorId/followers/:userId`      | `204` (idempotente)                       |
+| `GET`    | `/creators/:creatorId/followers/count`        | `200 {creatorId, count}`                  |
+| `GET`    | `/creators/:creatorId/followers/:userId`      | `200 {following}`                         |
+| `GET`    | `/health`                                     | `200 {status, database, ...}`             |
+
+Regras:
+
+- `404` quando a criadora ou o usuário não existem.
+- `400` para UUID inválido (`ParseUUIDPipe`) ou body inválido
+  (`class-validator` + `ValidationPipe` global com `whitelist` e
+  `forbidNonWhitelisted`).
+- O `/count` usa `COUNT(*)` na tabela `followers`; não existe coluna de contador.
+- Seguir é idempotente via `INSERT ... ON CONFLICT DO NOTHING` apoiado na PK
+  composta `(creator_id, user_id)`, seguro sob concorrência.
+- Erros sempre no mesmo envelope JSON:
+  `{statusCode, error, message, path, timestamp}`.
+
 ## Banco de dados
 
 | Tabela      | Colunas                                                       |
@@ -45,7 +75,10 @@ automaticamente na inicialização (`migrationsRun: true`).
 | `followers` | `creator_id` (FK), `user_id` (FK), `created_at`, PK composta  |
 
 As FKs de `followers` usam `ON DELETE CASCADE`. A migration de seed cria duas
-criadoras fictícias com UUIDs fixos.
+criadoras fictícias com UUIDs fixos. Os `id` de `creators` e `users` usam
+`gen_random_uuid()` como default (migration
+`AddUuidDefaultsToCreatorsAndUsers`), então novos registros recebem UUID v4 do
+próprio PostgreSQL.
 
 Inspecionar o banco:
 

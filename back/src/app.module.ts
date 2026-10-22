@@ -3,10 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { validateEnvironment } from './config/env.validation';
+import { CreatorsModule } from './creators/creators.module';
 import { Creator } from './entities/creator.entity';
 import { Follower } from './entities/follower.entity';
 import { User } from './entities/user.entity';
+import { FollowersModule } from './followers/followers.module';
 import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { HealthModule } from './health/health.module';
       }),
     }),
     HealthModule,
+    UsersModule,
+    CreatorsModule,
+    FollowersModule,
   ],
 })
 export class AppModule {}
